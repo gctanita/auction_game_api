@@ -1,0 +1,7 @@
+POST http://localhost:3000/create_user
+Content-Type: application/json
+
+{
+    "username": "xxx",
+    "password": "yyy"
+}
