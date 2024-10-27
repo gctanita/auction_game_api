@@ -188,14 +188,48 @@ async function getItemsByApiKey(dbConnection, apiKey) {
         const userId = userResult[0].id;
 
         // Step 2: Fetch items that belong to the user
-        const items = await dbConnection.execute(
-            'SELECT name, price FROM items WHERE owner_id = ?', [userId]
-        );
-
-        return { success: true, items };
+        const result = await getUserItemsWithDetails(dbConnection, userId);
+        
+        return { success: true, result};
 
     } catch (error) {
         console.error('Error fetching items:', error);
+        return { success: false, message: 'Failed to retrieve items.\n' + error };
+    }
+}
+
+async function getUserItemsWithDetails(dbConnection, userId) {
+    try {
+        const [items] = await dbConnection.execute(
+            `
+            SELECT 
+                items.id,
+                items.name,
+                items.description,
+                items.attack_modifier,
+                items.defense_modifier,
+                items.magic_modifier,
+                bonus1.effect_name AS bonus_effect_1_name,
+                bonus1.effect_description AS bonus_effect_1_description,
+                bonus2.effect_name AS bonus_effect_2_name,
+                bonus2.effect_description AS bonus_effect_2_description,
+                bonus3.effect_name AS bonus_effect_3_name,
+                bonus3.effect_description AS bonus_effect_3_description,
+                items.price
+            FROM 
+                items
+            LEFT JOIN bonus_effects AS bonus1 ON items.bonus_effect_1_id = bonus1.id
+            LEFT JOIN bonus_effects AS bonus2 ON items.bonus_effect_2_id = bonus2.id
+            LEFT JOIN bonus_effects AS bonus3 ON items.bonus_effect_3_id = bonus3.id
+            WHERE 
+                items.owner_id = ?
+            `,
+            [userId]
+        );
+
+        return items;
+    } catch (error) {
+        console.error('Error fetching user items:', error);
         throw error;
     }
 }
