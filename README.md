@@ -27,20 +27,20 @@ Implementing stuff:
     - `POST get_money_from_bank`
 - [Step 9: Get user inventory](./documenting_the_journey/Section_9.md)
     - GET inventory
-- Step 10: Get auction items
+- Step 10: Put an item up for auction
+    - POST item_for_action
+- Step 11: Get auction items
     - GET auction_items
     - list of items, with end date
-- Step 11: Put an item up for auction
-    - POST item_for_action
-- Step 11: Bid for an item
+- Step 12: Bid for an item
     - POST bid_for_item
-- Step 12: Implement first cron for bank interest
+- Step 13: Implement first cron for bank interest
     - Generate bank interest every 10 minutes with 10%
-- Step 13: Cron to generate new item in auction inventory
+- Step 14: Cron to generate new item in auction inventory
     - Generate an item every 20 minutes with owner 0
-- Step 14: Cron to generate new items for users
+- Step 15: Cron to generate new items for users
     - Generate an item every 30 minutes for a random 1% of users
-- Step 15: Cron to manage auctions
+- Step 16: Cron to manage auctions
     - Cron removes the items from auction inventory and allocates them to their initial owner or their new owner
     - The cron will also allocate the inital owner part of the money that was transfered to the auction house when the bid was made 
     - The cron will return the money to the bank accounts of the unsuccessffull bidders
