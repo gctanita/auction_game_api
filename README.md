@@ -5,27 +5,27 @@
 - [An oportunity](#an-oportunity)
 
 Implementing stuff:
-- [Step 1: I need a MariaDB server on my local machine](./Section_1-2.md)
+- [Step 1: I need a MariaDB server on my local machine](./documenting_the_journey/Section_1-2.md)
     - install Maria DB server
-- [Step 2: DB setup](./Section_1-2.md)
+- [Step 2: DB setup](./documenting_the_journey/Section_1-2.md)
     - create the db tables
-- [Step 3: Some seed data for the static tables](./Section_3.md)
+- [Step 3: Some seed data for the static tables](./documenting_the_journey/Section_3.md)
     - create inserts for the static tables with info
-- [Step 4: Ok, so let's add logic to this. Let's start with creating a new user...](./Section_4.md)
+- [Step 4: Ok, so let's add logic to this. Let's start with creating a new user...](./documenting_the_journey/Section_4.md)
     - implement the logic to **create a user**
-- [Step 5: I want to make a post call and create the user](./Section_5.md)
+- [Step 5: I want to make a post call and create the user](./documenting_the_journey/Section_5.md)
     - implement `POST create_user`
-- [Step 6: I need a function that generates a random item](./Section_6.md)
+- [Step 6: I need a function that generates a random item](./documenting_the_journey/Section_6.md)
     - implement the logic to **generate a random item**
-- [Step 7: Item inventory](./Section_7.md)
+- [Step 7: Item inventory](./documenting_the_journey/Section_7.md)
     - modify the items table to include owner_id thus creating the user inventory
     - `GET inventory`
-- [Step 8: Interacting with the bank](./Section_8.md)
+- [Step 8: Interacting with the bank](./documenting_the_journey/Section_8.md)
     - `GET bank_amount`
     - `GET pocket_money_amount`
     - `POST add_money_to_bank`
     - `POST get_money_from_bank`
-- Step 9: Get user inventory
+- [Step 9: Get user inventory](./documenting_the_journey/Section_9.md)
     - GET inventory
 - Step 10: Get auction items
     - GET auction_items
