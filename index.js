@@ -345,6 +345,40 @@ async function transferMoneyFromPocketToBank(dbConnection, apiKey, amount){
     }
 }
 
+async function moveItemToAuction(dbConnection, itemId, originalOwnerId, initialValue) {
+    try {
+        // Start a transaction to ensure atomic operations
+        await dbConnection.beginTransaction();
+
+        // Step 1: Update the item owner to 0
+        await dbConnection.execute(
+            'UPDATE items SET owner_id = ? WHERE id = ?',
+            [0, itemId]
+        );
+
+        // Step 2: Insert the item into auction_items_on_display
+        await dbConnection.execute(
+            `INSERT INTO auction_items_on_display (item_id, original_owner_id, max_bidder, max_sum)
+             VALUES (?, ?, NULL, ?)`,
+            [itemId, originalOwnerId, initialValue]
+        );
+
+        // Commit the transaction
+        await dbConnection.commit();
+
+        console.log(`Item ${itemId} moved to auction successfully.`);
+        return { success: true, message: `Item ${itemId} moved to auction successfully.` };
+    } catch (error) {
+        console.error('Error moving item to auction:', error);
+        if (dbConnection) {
+            await dbConnection.rollback();
+        }
+        return { success: false, message: 'Failed to move item to auction.' };
+    }
+}
+
+
+
 
 app.post('/create_user', async (req, res) => {
     const { username, password } = req.body;
@@ -510,6 +544,62 @@ app.get('/pocket_money_amount', async (req, res) => {
         })();
     } catch (error) {
         return res.status(500).json({ success: false, message: 'An error occurred while fetching inventory.' });
+    }
+});
+
+app.post('/move_item_to_auction', async (req, res) => {
+    const {apiKey, itemId, startingValue} = req.body;
+
+    if (!apiKey || !itemId) {
+        return res.status(400).json({ success: false, message: 'apiKey and itemId are required.' });
+    }
+
+    // Validate apiKey and get userId
+    try {
+        (async () => {
+            const dbConnection = await mysql.createConnection(DB_CONNECTION_DATA);
+            try {
+                const currentUser = await getUserByApiKey(dbConnection, apiKey)
+
+                if (currentUser === null) {
+                    return res.status(401).json({ success: false, message: 'Invalid apiKey.' });
+                }
+
+                const userId = currentUser.id;
+
+                // Optional: Verify that the item belongs to the user
+                const [itemRows] = await dbConnection.execute(
+                    'SELECT owner_id FROM items WHERE id = ?',
+                    [itemId]
+                );
+
+                if (itemRows.length === 0) {
+                    return res.status(404).json({ success: false, message: 'Item not found.' });
+                }
+
+                if (itemRows[0].owner_id !== userId) {
+                    return res.status(403).json({ success: false, message: 'You do not own this item.' });
+                }
+
+                // Move the item to auction
+                const result = await moveItemToAuction(dbConnection, itemId, itemRows[0].owner_id, startingValue);
+
+                if (result.success) {
+                    return res.status(200).json({
+                        success: true,
+                        auctionItemId: result.auctionItemId,
+                        message: 'Item moved to auction display successfully.'
+                    });
+                } else {
+                    return res.status(500).json({ success: false, message: result.message });
+                }
+            } finally {
+                await dbConnection.end();
+            }
+        })();
+    } catch (error) {
+        console.error('Error in /move_item_to_auction:', error.message);
+    return res.status(500).json({ success: false, message: 'An error occurred while fetching inventory.' });
     }
 });
 

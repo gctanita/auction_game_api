@@ -1,0 +1,8 @@
+POST http://localhost:3000/move_item_to_auction
+Content-Type: application/json
+
+{
+    "apiKey":"29f1cbd9-ff8d-4370-9ca7-83ed2fc0df1e",
+    "itemId": 6,
+    "startingValue":100
+}
