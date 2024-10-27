@@ -1,4 +1,3 @@
-<style>body {text-align: justify}</style>
 # This is the story of the "auction game api"
 
 - [How it all started](#how-it-all-started)
