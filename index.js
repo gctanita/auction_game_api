@@ -174,6 +174,32 @@ async function generateRandomItem(dbConnection) {
     }
 }
 
+async function getItemsByApiKey(dbConnection, apiKey) {
+    try {
+        // Step 1: Fetch the user by the provided API key
+        const [userResult] = await dbConnection.execute(
+            'SELECT id FROM users WHERE apikey = ? LIMIT 1', [apiKey]
+        );
+
+        if (userResult.length === 0) {
+            return { success: false, message: 'Invalid API key.' };
+        }
+
+        const userId = userResult[0].id;
+
+        // Step 2: Fetch items that belong to the user
+        const items = await dbConnection.execute(
+            'SELECT name, price FROM items WHERE owner_id = ?', [userId]
+        );
+
+        return { success: true, items };
+
+    } catch (error) {
+        console.error('Error fetching items:', error);
+        throw error;
+    }
+}
+
 app.post('/create_user', async (req, res) => {
     const { username, password } = req.body;
     
@@ -206,19 +232,46 @@ app.post('/create_user', async (req, res) => {
     }
 });
 
-// Test ITEM GENERATION
-(async () => {
-    const dbConnection = await mysql.createConnection(DB_CONNECTION_DATA);
+app.get('/inventory', async (req, res) => {
+    const { apiKey } = req.query;
 
-    try {
-        const result = await generateRandomItem(dbConnection);
-
-        console.log(result);
-
-    } finally {
-         await dbConnection.end();
+    if (!apiKey) {
+        return res.status(400).json({ success: false, message: 'apiKey parameter is required.' });
     }
-})();
+    
+    try {
+        (async () => {
+            const dbConnection = await mysql.createConnection(DB_CONNECTION_DATA);
+            try {
+                const result = await getItemsByApiKey(dbConnection, apiKey);
+
+                if (!result.success) {
+                    return res.status(401).json(result);
+                }
+
+                return res.status(200).json(result);
+            } finally {
+                await dbConnection.end();
+            }
+        })();
+    } catch (error) {
+        return res.status(500).json({ success: false, message: 'An error occurred while fetching inventory.' });
+    }
+});
+
+// // Test ITEM GENERATION
+// (async () => {
+//     const dbConnection = await mysql.createConnection(DB_CONNECTION_DATA);
+
+//     try {
+//         const result = await generateRandomItem(dbConnection);
+
+//         console.log(result);
+
+//     } finally {
+//          await dbConnection.end();
+//     }
+// })();
 
 // Start the server
 const port = 3000;
