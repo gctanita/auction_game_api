@@ -200,6 +200,118 @@ async function getItemsByApiKey(dbConnection, apiKey) {
     }
 }
 
+async function getBankAmount(dbConnection, apiKey) {
+    try {
+        const [bankAmount] = await dbConnection.execute(
+            `SELECT amount 
+            FROM bank_accounts 
+            INNER JOIN users ON users.bank_account_id = bank_accounts.id
+            WHERE users.apikey = ?`, 
+            [apiKey]
+        );
+
+        return {
+            success: true,
+            bank_amount: bankAmount[0].amount
+        };
+    } catch (error) {
+        console.error('Error fetching items:', error);
+        throw error;
+    }
+}
+
+async function getPocketMoney(dbConnection, apiKey) {
+    try {
+        const [poketMoney] = await dbConnection.execute(
+            `SELECT pocket_money 
+            FROM users
+            WHERE users.apikey = ?`, 
+            [apiKey]
+        );
+
+        return {
+            success: true,
+            pocket_money: poketMoney[0].pocket_money
+        };
+    } catch (error) {
+        console.error('Error fetching items:', error);
+        throw error;
+    }
+}
+
+async function getUserByApiKey(dbConnection, apiKey) {
+    try {
+        const [user] = await dbConnection.execute(
+            `SELECT * 
+            FROM users
+            WHERE users.apikey = ?`, 
+            [apiKey]
+        );
+
+        return user[0];
+    } catch (error) {
+        console.error('Error fetching items:', error);
+        throw error;
+    }
+}
+
+async function transferMoneyFromBankToPocket(dbConnection, apiKey, amount){
+    moneyInBank = await getBankAmount(dbConnection, apiKey);
+    moneyInPocket = await getPocketMoney(dbConnection, apiKey);
+
+    user = await getUserByApiKey(dbConnection, apiKey);
+
+    updatedMoneyInBank = moneyInBank.bank_amount - amount;
+    updatedMoneyInPocket = parseFloat(moneyInPocket.pocket_money) + amount;
+
+    // await connection.beginTransaction();
+
+    await dbConnection.execute(
+        'UPDATE users SET pocket_money = ? WHERE id = ?',
+        [updatedMoneyInPocket, user.id]
+    );
+
+    await dbConnection.execute(
+        'UPDATE bank_accounts SET amount = ? WHERE id = ?',
+        [updatedMoneyInBank, user.bank_account_id]
+    );
+
+    await dbConnection.commit();
+
+    return {
+        success: true
+    }
+}
+
+async function transferMoneyFromPocketToBank(dbConnection, apiKey, amount){
+    moneyInBank = await getBankAmount(dbConnection, apiKey);
+    moneyInPocket = await getPocketMoney(dbConnection, apiKey);
+
+    user = await getUserByApiKey(dbConnection, apiKey);
+
+    updatedMoneyInBank = parseFloat(moneyInBank.bank_amount) + amount;
+    updatedMoneyInPocket = moneyInPocket.pocket_money - amount;
+
+  //  await connection.beginTransaction();
+
+    await dbConnection.execute(
+        'UPDATE users SET pocket_money = ? WHERE id = ?',
+        [updatedMoneyInPocket, user.id]
+    );
+
+    await dbConnection.execute(
+        'UPDATE bank_accounts SET amount = ? WHERE id = ?',
+        [updatedMoneyInBank, user.bank_account_id]
+    );
+
+    await dbConnection.commit();
+
+    return {
+        success: true
+    }
+}
+
+
 app.post('/create_user', async (req, res) => {
     const { username, password } = req.body;
     
@@ -244,6 +356,114 @@ app.get('/inventory', async (req, res) => {
             const dbConnection = await mysql.createConnection(DB_CONNECTION_DATA);
             try {
                 const result = await getItemsByApiKey(dbConnection, apiKey);
+
+                if (!result.success) {
+                    return res.status(401).json(result);
+                }
+
+                return res.status(200).json(result);
+            } finally {
+                await dbConnection.end();
+            }
+        })();
+    } catch (error) {
+        return res.status(500).json({ success: false, message: 'An error occurred while fetching inventory.' });
+    }
+});
+
+app.post('/add_money_to_bank', async (req, res) => {
+    const { apiKey, amount } = req.body;
+
+    if (!apiKey || amount === undefined) {
+        return res.status(400).json({ error: 'apiKey and amount parameters are required.' });
+    }
+
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        return res.status(400).json({ error: 'Amount must be a positive number.' });
+    }
+
+    try {
+        
+        (async () => {
+            const dbConnection = await mysql.createConnection(DB_CONNECTION_DATA);
+
+            const response = await transferMoneyFromPocketToBank(dbConnection, apiKey, parsedAmount);
+
+            res.status(201).json(response);
+        })();
+    
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error creating user.' });
+    }
+});
+
+app.post('/get_money_from_bank', async (req, res) => {
+    const { apiKey, amount } = req.body;
+
+    if (!apiKey || amount === undefined) {
+        return res.status(400).json({ error: 'apiKey and amount parameters are required.' });
+    }
+
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        return res.status(400).json({ error: 'Amount must be a positive number.' });
+    }
+
+    try {
+        
+        (async () => {
+            const dbConnection = await mysql.createConnection(DB_CONNECTION_DATA);
+
+            const response = await transferMoneyFromBankToPocket(dbConnection, apiKey, parsedAmount);
+
+            res.status(201).json(response);
+        })();
+    
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error creating user.' });
+    }
+});
+
+app.get('/bank_amount', async (req, res) => {
+    const { apiKey } = req.query;
+
+    if (!apiKey) {
+        return res.status(400).json({ success: false, message: 'apiKey parameter is required.' });
+    }
+    
+    try {
+        (async () => {
+            const dbConnection = await mysql.createConnection(DB_CONNECTION_DATA);
+            try {
+                const result = await getBankAmount(dbConnection, apiKey);
+
+                if (!result.success) {
+                    return res.status(401).json(result);
+                }
+
+                return res.status(200).json(result);
+            } finally {
+                await dbConnection.end();
+            }
+        })();
+    } catch (error) {
+        return res.status(500).json({ success: false, message: 'An error occurred while fetching inventory.' });
+    }
+});
+
+app.get('/pocket_money_amount', async (req, res) => {
+    const { apiKey } = req.query;
+
+    if (!apiKey) {
+        return res.status(400).json({ success: false, message: 'apiKey parameter is required.' });
+    }
+    
+    try {
+        (async () => {
+            const dbConnection = await mysql.createConnection(DB_CONNECTION_DATA);
+            try {
+                const result = await getPocketMoney(dbConnection, apiKey);
 
                 if (!result.success) {
                     return res.status(401).json(result);
