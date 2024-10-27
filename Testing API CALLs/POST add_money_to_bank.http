@@ -1,0 +1,7 @@
+POST http://localhost:3000/add_money_to_bank
+Content-Type: application/json
+
+{
+    "apiKey":"29f1cbd9-ff8d-4370-9ca7-83ed2fc0df1e",
+    "amount": 100
+}
