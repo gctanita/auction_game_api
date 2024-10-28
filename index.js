@@ -345,7 +345,7 @@ async function transferMoneyFromPocketToBank(dbConnection, apiKey, amount){
     }
 }
 
-async function moveItemToAuction(dbConnection, itemId, originalOwnerId, initialValue) {
+async function moveItemToAuction(dbConnection, itemId, originalOwnerId, initialValue, end_date) {
     try {
         // Start a transaction to ensure atomic operations
         await dbConnection.beginTransaction();
@@ -358,9 +358,9 @@ async function moveItemToAuction(dbConnection, itemId, originalOwnerId, initialV
 
         // Step 2: Insert the item into auction_items_on_display
         await dbConnection.execute(
-            `INSERT INTO auction_items_on_display (item_id, original_owner_id, max_bidder, max_sum)
-             VALUES (?, ?, NULL, ?)`,
-            [itemId, originalOwnerId, initialValue]
+            `INSERT INTO auction_items_on_display (item_id, original_owner_id, max_bidder, max_sum, end_date)
+             VALUES (?, ?, NULL, ?, ?)`,
+            [itemId, originalOwnerId, initialValue, end_date]
         );
 
         // Commit the transaction
@@ -377,7 +377,42 @@ async function moveItemToAuction(dbConnection, itemId, originalOwnerId, initialV
     }
 }
 
+async function getAuctionItems(dbConnection) {
+    try {
+        const [auctionItems] = await dbConnection.execute(
+            `
+            SELECT 
+                items.id AS item_id,
+                items.name AS item_name,
+                items.description AS item_description,
+                items.attack_modifier,
+                items.defense_modifier,
+                items.magic_modifier,
+                bonus1.effect_name AS bonus_effect_1_name,
+                bonus1.effect_description AS bonus_effect_1_description,
+                bonus2.effect_name AS bonus_effect_2_name,
+                bonus2.effect_description AS bonus_effect_2_description,
+                bonus3.effect_name AS bonus_effect_3_name,
+                bonus3.effect_description AS bonus_effect_3_description,
+                auction_items_on_display.max_sum AS current_max_bid,
+                auction_items_on_display.end_date
+            FROM 
+                auction_items_on_display
+            JOIN items ON auction_items_on_display.item_id = items.id
+            LEFT JOIN bonus_effects AS bonus1 ON items.bonus_effect_1_id = bonus1.id
+            LEFT JOIN bonus_effects AS bonus2 ON items.bonus_effect_2_id = bonus2.id
+            LEFT JOIN bonus_effects AS bonus3 ON items.bonus_effect_3_id = bonus3.id
+            WHERE 
+                auction_items_on_display.end_date > NOW()
+            `
+        );
 
+        return { success: true, items: auctionItems };
+    } catch (error) {
+        console.error('Error fetching auction items:', error);
+        return { success: false, message: 'Failed to retrieve auction items.' };
+    }
+}
 
 
 app.post('/create_user', async (req, res) => {
@@ -548,7 +583,7 @@ app.get('/pocket_money_amount', async (req, res) => {
 });
 
 app.post('/move_item_to_auction', async (req, res) => {
-    const {apiKey, itemId, startingValue} = req.body;
+    const {apiKey, itemId, startingValue, hours, minutes} = req.body;
 
     if (!apiKey || !itemId) {
         return res.status(400).json({ success: false, message: 'apiKey and itemId are required.' });
@@ -581,8 +616,12 @@ app.post('/move_item_to_auction', async (req, res) => {
                     return res.status(403).json({ success: false, message: 'You do not own this item.' });
                 }
 
+                let end_date = new Date();
+                end_date.setHours(end_date.getHours() + hours);
+                end_date.setMinutes(end_date.getMinutes() + minutes);
+
                 // Move the item to auction
-                const result = await moveItemToAuction(dbConnection, itemId, itemRows[0].owner_id, startingValue);
+                const result = await moveItemToAuction(dbConnection, itemId, itemRows[0].owner_id, startingValue, end_date);
 
                 if (result.success) {
                     return res.status(200).json({
@@ -602,6 +641,37 @@ app.post('/move_item_to_auction', async (req, res) => {
     return res.status(500).json({ success: false, message: 'An error occurred while fetching inventory.' });
     }
 });
+
+app.get('/auction_items', async (req, res) => {
+    const {apiKey} = req.query;
+
+    if (!apiKey) {
+        return res.status(400).json({ success: false, message: 'apiKey is required.' });
+    }
+
+    // Validate apiKey and get userId
+    try {
+        (async () => {
+            const dbConnection = await mysql.createConnection(DB_CONNECTION_DATA);
+            try {
+                
+                const result = await getAuctionItems(dbConnection);
+
+                if (result.success) {
+                    return res.status(200).json({ success: true, items: result.items });
+                } else {
+                    return res.status(500).json({ success: false, message: result.message });
+                }
+            } finally {
+                await dbConnection.end();
+            }
+        })();
+    } catch (error) {
+        console.error('Error in /auction_items:', error.message);
+    return res.status(500).json({ success: false, message: 'An error occurred while fetching items up for auction.' });
+    }
+});
+
 
 // // Test ITEM GENERATION
 // (async () => {
