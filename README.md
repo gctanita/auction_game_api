@@ -27,9 +27,9 @@ Implementing stuff:
     - `POST get_money_from_bank`
 - [Step 9: Get user inventory](./documenting_the_journey/Section_9.md)
     - GET inventory
-- Step 10: Put an item up for auction
+- [Step 10: Put an item up for auction](./documenting_the_journey/Section_10.md)
     - POST item_for_action
-- Step 11: Get auction items
+- [Step 11: Get auction items](./documenting_the_journey/Section_11.md)
     - GET auction_items
     - list of items, with end date
 - Step 12: Bid for an item

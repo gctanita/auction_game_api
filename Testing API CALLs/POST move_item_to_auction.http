@@ -4,5 +4,7 @@ Content-Type: application/json
 {
     "apiKey":"29f1cbd9-ff8d-4370-9ca7-83ed2fc0df1e",
     "itemId": 6,
-    "startingValue":100
+    "startingValue":100,
+    "hours":0,
+    "minutes": 61
 }

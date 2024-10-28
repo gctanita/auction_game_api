@@ -345,7 +345,7 @@ async function transferMoneyFromPocketToBank(dbConnection, apiKey, amount){
     }
 }
 
-async function moveItemToAuction(dbConnection, itemId, originalOwnerId, initialValue) {
+async function moveItemToAuction(dbConnection, itemId, originalOwnerId, initialValue, end_date) {
     try {
         // Start a transaction to ensure atomic operations
         await dbConnection.beginTransaction();
@@ -358,9 +358,9 @@ async function moveItemToAuction(dbConnection, itemId, originalOwnerId, initialV
 
         // Step 2: Insert the item into auction_items_on_display
         await dbConnection.execute(
-            `INSERT INTO auction_items_on_display (item_id, original_owner_id, max_bidder, max_sum)
-             VALUES (?, ?, NULL, ?)`,
-            [itemId, originalOwnerId, initialValue]
+            `INSERT INTO auction_items_on_display (item_id, original_owner_id, max_bidder, max_sum, end_date)
+             VALUES (?, ?, NULL, ?, ?)`,
+            [itemId, originalOwnerId, initialValue, end_date]
         );
 
         // Commit the transaction
@@ -548,7 +548,7 @@ app.get('/pocket_money_amount', async (req, res) => {
 });
 
 app.post('/move_item_to_auction', async (req, res) => {
-    const {apiKey, itemId, startingValue} = req.body;
+    const {apiKey, itemId, startingValue, hours, minutes} = req.body;
 
     if (!apiKey || !itemId) {
         return res.status(400).json({ success: false, message: 'apiKey and itemId are required.' });
@@ -581,8 +581,12 @@ app.post('/move_item_to_auction', async (req, res) => {
                     return res.status(403).json({ success: false, message: 'You do not own this item.' });
                 }
 
+                let end_date = new Date();
+                end_date.setHours(end_date.getHours() + hours);
+                end_date.setMinutes(end_date.getMinutes() + minutes);
+
                 // Move the item to auction
-                const result = await moveItemToAuction(dbConnection, itemId, itemRows[0].owner_id, startingValue);
+                const result = await moveItemToAuction(dbConnection, itemId, itemRows[0].owner_id, startingValue, end_date);
 
                 if (result.success) {
                     return res.status(200).json({
